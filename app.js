@@ -241,6 +241,8 @@
   // ── 동기화 프록시 ──────────────────────────────────────────
   async function initProxy() {
     if (!/^https?:$/.test(location.protocol)) return;
+    // GitHub Pages 처럼 로컬 서버가 없는 곳에서는 찾지 않음 (동기화·캡처는 npm run dev 로 실행할 때만)
+    if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return;
     try {
       const r = await fetch('/__dtm/info', { cache: 'no-store' });
       if (!r.ok) return;
