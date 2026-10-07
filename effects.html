@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>웹 효과 도감 · DTM</title>
+  <meta name="description" content="웹페이지에 쓰는 효과를 직접 움직여 보고, 이름과 코드, AI 에게 붙여넣을 프롬프트까지 한 번에 확인하는 효과 모음.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="effects.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" title="DTM 미리보기로 돌아가기">
+      <img src="assets/logo.png" alt="" width="28" height="28">
+      <span>DTM</span>
+    </a>
+    <nav class="tabs" aria-label="DTM 페이지">
+      <a href="./">미리보기</a>
+      <a href="effects.html" aria-current="page">효과 도감</a>
+    </nav>
+    <label class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="search" type="search" placeholder="효과 이름 검색 (한글·영문)" autocomplete="off" spellcheck="false" aria-label="효과 검색">
+      <kbd>/</kbd>
+    </label>
+  </header>
+
+  <main>
+    <section class="hero">
+      <img class="hero-bg" src="assets/effects/hero.webp" alt="" fetchpriority="high">
+      <div class="hero-copy">
+        <p class="kicker">WEB EFFECTS GALLERY</p>
+        <h1>웹 효과 도감</h1>
+        <p class="lead">효과를 직접 움직여 보고, <b>이름</b>을 알고, <b>AI 프롬프트</b>로 바로 만들어 쓰세요.<br>카드에서 실제로 동작하는 코드가 상세보기의 코드와 똑같아요.</p>
+        <dl class="stats">
+          <div><dt>효과</dt><dd id="statEffects">0</dd></div>
+          <div><dt>카테고리</dt><dd id="statCats">0</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <nav class="filters" id="filters" aria-label="카테고리"></nav>
+
+    <p class="result" id="result" aria-live="polite"></p>
+    <section class="grid" id="grid" aria-label="효과 목록"></section>
+    <p class="empty" id="empty" hidden>검색 결과가 없어요. 다른 이름(영문 포함)으로 찾아보세요.</p>
+  </main>
+
+  <!-- 상세보기 -->
+  <dialog class="detail" id="detail" aria-labelledby="dTitle">
+    <div class="detail-inner">
+      <header class="d-head">
+        <div>
+          <p class="d-cat" id="dCat"></p>
+          <h2 id="dTitle"></h2>
+          <p class="d-en" id="dEn"></p>
+        </div>
+        <div class="d-head-actions">
+        <button type="button" class="fav big" id="dFav" aria-pressed="false" aria-label="즐겨찾기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg><span>즐겨찾기</span></button>
+        <button type="button" class="icon-btn" id="dClose" aria-label="닫기">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+        </div>
+      </header>
+
+      <div class="d-body">
+        <div class="d-stage">
+          <div class="d-frame"><iframe id="dDemo" title="효과 미리보기" sandbox="allow-scripts"></iframe></div>
+          <div class="d-stage-bar">
+            <span class="hint-chip" id="dHint"></span>
+            <button type="button" class="btn ghost" id="dReplay">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>다시 재생
+            </button>
+          </div>
+        </div>
+
+        <div class="d-info">
+          <div class="d-tabs" role="tablist" aria-label="상세 정보">
+            <button type="button" role="tab" id="tab-info" aria-controls="panel-info" aria-selected="true">설명</button>
+            <button type="button" role="tab" id="tab-code" aria-controls="panel-code" aria-selected="false">코드</button>
+            <button type="button" role="tab" id="tab-prompt" aria-controls="panel-prompt" aria-selected="false">프롬프트</button>
+          </div>
+
+          <section class="d-panel" id="panel-info" role="tabpanel" aria-labelledby="tab-info"></section>
+
+          <section class="d-panel" id="panel-code" role="tabpanel" aria-labelledby="tab-code" hidden>
+            <div class="code-bar">
+              <div class="seg" id="codeSeg" role="group" aria-label="코드 종류"></div>
+              <button type="button" class="btn ghost" id="copyCode">복사</button>
+            </div>
+            <pre class="code"><code id="codeView"></code></pre>
+            <button type="button" class="btn ghost wide" id="copyFile">한 파일(HTML)로 전체 복사</button>
+          </section>
+
+          <section class="d-panel" id="panel-prompt" role="tabpanel" aria-labelledby="tab-prompt" hidden>
+            <p class="panel-note">AI 코딩 도구(Claude · Codex · Cursor 등)에 그대로 붙여넣으면 이 효과를 만들어 줘요.</p>
+            <pre class="prompt" id="promptView"></pre>
+            <button type="button" class="btn primary wide" id="copyPrompt">프롬프트 복사</button>
+          </section>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="effects-data.js"></script>
+  <script src="effects.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "dtm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "내 사이트를 데스크탑·태블릿·모바일로 한눈에 보고, 폭을 줄이며 변화를 보는 반응형 미리보기 도구",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}

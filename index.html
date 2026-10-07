@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DTM 반응형 미리보기</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // 테마는 첫 페인트 전에 적용 (깜빡임 방지)
+    try { const t = JSON.parse(localStorage.getItem('dtm:theme')); if (t === 'dark') document.documentElement.dataset.theme = 'dark'; } catch {}
+  </script>
+</head>
+<body>
+  <header class="toolbar">
+    <div class="row">
+      <a class="brand" href="./" aria-label="DTM 처음 화면">
+        <img class="brand-logo" src="assets/logo.png" alt="" width="40" height="40">
+        <span class="brand-name"><b class="y">DTM</b><b>Preview</b></span>
+      </a>
+
+      <form class="urlbar" id="urlForm" autocomplete="off">
+        <span class="ico" data-icon="globe"></span>
+        <input id="urlInput" list="recentUrls" spellcheck="false" placeholder="localhost:3000 또는 포트 번호만 (예: 3000)" aria-label="미리볼 주소">
+        <datalist id="recentUrls"></datalist>
+        <button type="submit" class="px-btn primary">열기</button>
+      </form>
+
+      <button type="button" class="px-square" id="reloadBtn" title="모두 새로고침 (R)" aria-label="모두 새로고침"><span class="ico" data-icon="reload"></span></button>
+      <div class="cap-group">
+        <button type="button" class="px-square capture-btn" id="captureBtn" title="화면 캡처 (C)" aria-label="화면 캡처"><span class="ico" data-icon="camera"></span></button>
+        <div class="scope-seg" role="group" aria-label="캡처 범위">
+          <button type="button" data-scope="viewport" aria-pressed="true" title="보이는 화면만 캡처">화면</button>
+          <button type="button" data-scope="full" aria-pressed="false" title="스크롤 끝까지 전체 페이지 캡처">전체</button>
+        </div>
+      </div>
+
+      <nav class="modes" id="modeSeg" role="tablist" aria-label="보기 모드">
+        <button type="button" role="tab" class="mode-btn" data-mode="multi" title="기기별 한눈에 보기 (M)">
+          <span class="ico" data-icon="grid"></span><span>한눈에</span>
+        </button>
+        <button type="button" role="tab" class="mode-btn" data-mode="morph" title="폭을 줄이며 변화 보기 (M)">
+          <span class="ico" data-icon="resize"></span><span>리사이즈</span>
+        </button>
+      </nav>
+
+      <a class="mode-btn fx-link" href="effects.html" title="웹 효과 도감 — 효과를 보고 이름·코드·AI 프롬프트 확인">
+        <span class="ico" data-icon="image"></span><span>효과 도감</span>
+      </a>
+
+      <label class="switch" id="syncSwitch">
+        <input type="checkbox" id="syncToggle">
+        <span class="track"></span>
+        <span class="switch-label">스크롤·이동<br>동기화</span>
+      </label>
+
+      <button type="button" class="px-square" id="themeBtn" title="다크 모드 전환" aria-label="다크 모드 전환"><span class="ico" data-icon="moon"></span></button>
+    </div>
+
+    <!-- 한눈에 보기 모드 컨트롤 -->
+    <div class="row sub" id="multiBar">
+      <div class="chips" id="chips"></div>
+      <button type="button" class="px-btn" id="showAllBtn">모두 보기</button>
+      <label class="field">배율 <select id="zoomSelect" class="px-select"></select></label>
+      <span class="hint"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 단독 · <kbd>0</kbd> 모두 · <kbd>M</kbd> 리사이즈</span>
+    </div>
+
+    <!-- 리사이즈 모드 컨트롤 -->
+    <div class="row sub" id="morphBar" hidden>
+      <button type="button" class="px-btn primary play" id="playBtn"></button>
+      <select id="speedSelect" class="px-select" aria-label="재생 속도"></select>
+      <label class="check"><input type="checkbox" id="holdBp"><span class="box"></span>브레이크포인트에서 멈춤</label>
+      <div class="slider">
+        <input type="range" id="widthRange" step="1" aria-label="화면 폭">
+        <div class="slider-ticks" id="rangeTicks"></div>
+      </div>
+      <div class="readout">
+        <input type="number" id="widthInput" class="px-input" aria-label="화면 폭(px)"><span>px</span>
+        <span class="bp-badge" id="bpBadge" title="현재 적용 중인 브레이크포인트"></span>
+      </div>
+      <div class="presets" id="morphPresets"></div>
+      <details class="settings" id="settings">
+        <summary class="px-square sm" title="리사이즈 설정" aria-label="리사이즈 설정"><span class="ico" data-icon="settings"></span></summary>
+        <div class="settings-panel">
+          <div class="settings-grid">
+            <label>최소 폭<input type="number" id="minInput" class="px-input" min="200" max="2000"></label>
+            <label>최대 폭<input type="number" id="maxInput" class="px-input" min="400" max="3840"></label>
+          </div>
+          <label>브레이크포인트 <small>이름:폭, 쉼표로 구분</small>
+            <input type="text" id="bpInput" class="px-input" spellcheck="false">
+          </label>
+          <div class="settings-foot">
+            <button type="button" class="px-btn" id="bpReset">Tailwind 기본값</button>
+          </div>
+        </div>
+      </details>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="multi" id="multi" hidden></div>
+
+    <div class="morph" id="morph" hidden>
+      <div class="morph-canvas" id="morphCanvas">
+        <div class="ruler">
+          <div class="ruler-ticks" id="rulerTicks"></div>
+          <div class="ruler-span" id="rulerSpan"></div>
+          <div class="width-pill"><b id="pillW"></b><span id="pillBp"></span></div>
+        </div>
+        <div class="guides" id="guides"></div>
+      </div>
+    </div>
+
+    <div class="empty" id="empty" hidden>
+      <div class="hero">
+        <div class="hero-copy">
+          <span class="tag">Welcome to DTM Preview</span>
+          <h1>내 사이트를<br>기기별로<br><span class="hl">한눈에</span></h1>
+          <span class="float-note" aria-hidden="true">Pixel-Perfect</span>
+          <p>데스크탑 · 태블릿 · 모바일 화면을 나란히 띄우고, 폭을 줄여가며 레이아웃이 바뀌는 순간을 확인하세요. 주소창에 포트 번호만 입력해도 돼요.</p>
+          <div class="quick" id="quick"></div>
+          <a class="fx-banner" href="effects.html"><b>NEW</b> 웹 효과 도감 — 효과를 직접 움직여 보고 이름·AI 프롬프트 확인하기 <span class="ico" data-icon="arrow-right"></span></a>
+          <ul class="keys">
+            <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 단독 보기</li>
+            <li><kbd>0</kbd> 모두 보기</li>
+            <li><kbd>M</kbd> 모드 전환</li>
+            <li><kbd>Space</kbd> 재생</li>
+            <li><kbd>←</kbd><kbd>→</kbd> 폭 조절</li>
+            <li><kbd>R</kbd> 새로고침</li>
+          </ul>
+        </div>
+        <figure class="hero-art">
+          <img src="assets/hero.png" alt="데스크탑, 태블릿, 스마트폰에 같은 웹사이트가 화면 크기에 맞게 다르게 표시된 픽셀 아트">
+          <span class="badge red">3 Devices</span>
+          <span class="badge white">Live Resize</span>
+        </figure>
+      </div>
+      <div class="pixel-dots" aria-hidden="true"><i></i><i></i><i></i><b></b><i></i><i></i><i></i></div>
+    </div>
+  </main>
+
+  <!-- 캡처 창: 캡처할 때마다 저장 위치·범위를 확인 -->
+  <dialog class="px-dialog" id="captureDlg" aria-labelledby="capTitle">
+    <form id="captureForm" method="dialog">
+      <header class="dlg-head">
+        <span class="dlg-icon"><span class="ico" data-icon="camera"></span></span>
+        <h2 id="capTitle">화면 캡처</h2>
+        <button type="button" class="icon-btn" id="capClose" aria-label="닫기"><span class="ico" data-icon="close"></span></button>
+      </header>
+
+      <div class="dlg-body" id="capSetup">
+        <div class="dlg-field">
+          <span class="dlg-label">저장 위치</span>
+          <div class="folder-row">
+            <span class="ico" data-icon="folder"></span>
+            <code id="capFolder" class="folder-path is-empty">아직 선택하지 않았어요</code>
+            <button type="button" class="px-btn" id="capPick">폴더 선택…</button>
+          </div>
+          <small class="dlg-hint">고른 폴더에 사진만 바로 저장해요. 파일 이름: <b>사이트_날짜-시간_기기-크기.jpg</b></small>
+        </div>
+
+        <div class="dlg-field">
+          <span class="dlg-label">캡처 범위</span>
+          <div class="scope-seg lg" role="group" aria-label="캡처 범위">
+            <button type="button" data-scope="viewport" aria-pressed="true">보이는 화면만</button>
+            <button type="button" data-scope="full" aria-pressed="false">전체 페이지 (스크롤 끝까지)</button>
+          </div>
+        </div>
+
+        <label class="check" id="capOverviewRow"><input type="checkbox" id="capOverview"><span class="box"></span>기기를 나란히 붙인 합본 이미지도 만들기</label>
+
+        <div class="dlg-field">
+          <span class="dlg-label">캡처할 화면</span>
+          <ul class="shot-list" id="capList"></ul>
+        </div>
+      </div>
+
+      <div class="dlg-body" id="capResult" hidden>
+        <div class="cap-done">
+          <img src="assets/logo.png" alt="" width="48" height="48">
+          <div><b id="capDoneTitle"></b><code id="capDonePath"></code></div>
+        </div>
+        <ul class="file-list" id="capFiles"></ul>
+      </div>
+
+      <p class="cap-error" id="capError" role="alert" hidden></p>
+
+      <footer class="dlg-foot" id="capSetupFoot">
+        <button type="button" class="px-btn" id="capCancel">취소</button>
+        <button type="submit" class="px-btn primary" id="capGo"><span class="ico" data-icon="camera"></span><span>캡처하기</span></button>
+      </footer>
+      <footer class="dlg-foot" id="capResultFoot" hidden>
+        <button type="button" class="px-btn" id="capAgain">다시 캡처</button>
+        <button type="button" class="px-btn primary" id="capOpen"><span class="ico" data-icon="folder"></span><span>폴더 열기</span></button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="assets/icons.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
