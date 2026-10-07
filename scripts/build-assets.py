@@ -136,8 +136,28 @@ def build_effects() -> None:
             print("  effects/landscape-before.webp  (보정 전 버전)")
 
 
+SHOTS_RAW = RAW / "shots"
+SHOTS_OUT = OUT / "shots"
+SHOT_RENAME = {"ref-hero": "full"}  # 기준 주인공 이미지 = 풀 샷 예시
+
+
+def build_shots() -> None:
+    """샷 도감 이미지: assets/raw/shots/*.png → assets/shots/*.webp (영상 포스터는 scripts/video-posters.mjs)."""
+    if not SHOTS_RAW.exists():
+        return
+    SHOTS_OUT.mkdir(exist_ok=True)
+    for src in sorted(SHOTS_RAW.glob("*.png")):
+        img = Image.open(src).convert("RGB")
+        if img.width > EFFECTS_WIDTH:
+            img = img.resize((EFFECTS_WIDTH, round(img.height * EFFECTS_WIDTH / img.width)), Image.LANCZOS)
+        name = SHOT_RENAME.get(src.stem, src.stem)
+        img.save(SHOTS_OUT / f"{name}.webp", quality=82, method=6)
+        print(f"  shots/{name}.webp  {img.size[0]}x{img.size[1]}")
+
+
 if __name__ == "__main__":
     print("assets 빌드")
     build_rasters()
     build_icons_js()
     build_effects()
+    build_shots()

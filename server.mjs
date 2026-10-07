@@ -28,13 +28,14 @@ let target = null; // 프록시가 전달할 대상 origin (예: http://localhos
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.woff2': 'font/woff2',
-  '.jpg': 'image/jpeg',
+  '.jpg': 'image/jpeg', '.mp4': 'video/mp4',
 };
 const PUBLIC = new Set([
   '/index.html', '/app.js', '/styles.css',
   '/effects.html', '/effects.css', '/effects.js', '/effects-data.js', // 웹 효과 도감
+  '/shots.html', '/shots.css', '/shots.js', '/shots-data.js',         // 영상 샷 도감
 ]);
-const ALIASES = { '/effects': '/effects.html' };
+const ALIASES = { '/effects': '/effects.html', '/shots': '/shots.html' };
 const PUBLIC_DIRS = /^\/assets\/[\w./-]+$/; // 이미지 폴더 (.. 금지)
 const isPublic = (p) => PUBLIC.has(p) || (PUBLIC_DIRS.test(p) && !p.includes('..') && extname(p) in MIME);
 const HEAD_RE = /<head(?:\s[^>]*)?>/i;
@@ -93,7 +94,23 @@ const ui = http.createServer(async (req, res) => {
   }
   try {
     const data = await readFile(join(ROOT, file));
-    res.writeHead(200, { 'content-type': MIME[extname(file)], 'cache-control': 'no-store' });
+    const type = MIME[extname(file)];
+    // 영상은 Range 요청(부분 전송)을 지원해야 Safari 에서 재생되고 구간 이동이 돼요
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (range && (range[1] || range[2])) {
+      const size = data.length;
+      let start = range[1] ? Number(range[1]) : size - Number(range[2]);
+      let end = range[1] && range[2] ? Number(range[2]) : size - 1;
+      start = Math.max(0, start);
+      end = Math.min(end, size - 1);
+      if (start > end) {
+        res.writeHead(416, { 'content-range': `bytes */${size}` });
+        return res.end();
+      }
+      res.writeHead(206, { 'content-type': type, 'content-range': `bytes ${start}-${end}/${size}`, 'accept-ranges': 'bytes', 'content-length': end - start + 1, 'cache-control': 'no-store' });
+      return res.end(data.subarray(start, end + 1));
+    }
+    res.writeHead(200, { 'content-type': type, 'accept-ranges': 'bytes', 'cache-control': 'no-store' });
     res.end(data);
   } catch {
     res.writeHead(404);

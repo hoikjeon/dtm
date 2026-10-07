@@ -1,2 +1,6 @@
 node_modules/
 .DS_Store
+
+# 샷 도감 원본(PNG·영상 원본, 78MB)은 로컬에만 보관 — 페이지는 assets/shots/ 의 WebP·MP4 사용
+assets/raw/shots/*
+!assets/raw/shots/ref-hero.png

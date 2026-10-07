@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>영상 샷 도감 · DTM</title>
+  <meta name="description" content="영상 제작에 쓰는 샷의 종류(크기·앵글·무빙·구도·렌즈·속도·편집)를 예시 이미지와 영상으로 보고, AI 영상 도구에 넣을 영어 프롬프트까지 바로 복사하는 샷 도감.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="effects.css">
+  <link rel="stylesheet" href="shots.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" title="DTM 미리보기로 돌아가기">
+      <img src="assets/logo.png" alt="" width="28" height="28">
+      <span>DTM</span>
+    </a>
+    <nav class="tabs" aria-label="DTM 페이지">
+      <a href="./">미리보기</a>
+      <a href="effects.html">효과 도감</a>
+      <a href="shots.html" aria-current="page">샷 도감</a>
+    </nav>
+    <label class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="search" type="search" placeholder="샷 이름 검색 (한글·영문·약어)" autocomplete="off" spellcheck="false" aria-label="샷 검색">
+      <kbd>/</kbd>
+    </label>
+    <button type="button" class="btn primary builder-open" id="builderOpen">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h6"/><circle cx="18" cy="15" r="3"/></svg>샷 조합기
+    </button>
+  </header>
+
+  <main>
+    <section class="hero shots-hero">
+      <img class="hero-bg" src="assets/shots/close-up.webp" alt="" fetchpriority="high">
+      <div class="hero-copy">
+        <p class="kicker">VIDEO SHOT GALLERY</p>
+        <h1>영상 샷 도감</h1>
+        <p class="lead">샷의 <b>이름</b>을 알면 AI 에게 <b>정확히</b> 요청할 수 있어요.<br>같은 주인공을 샷만 바꿔 찍은 예시로 차이를 보고, 영어 프롬프트를 바로 복사하세요.</p>
+        <dl class="stats">
+          <div><dt>샷</dt><dd id="statShots">0</dd></div>
+          <div><dt>분류</dt><dd id="statCats">0</dd></div>
+          <div><dt>영상 예시</dt><dd id="statVideos">0</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <nav class="filters" id="filters" aria-label="분류"></nav>
+    <p class="result" id="result" aria-live="polite"></p>
+    <section class="grid shot-grid" id="grid" aria-label="샷 목록"></section>
+    <p class="empty" id="empty" hidden></p>
+  </main>
+
+  <!-- 상세보기 -->
+  <dialog class="detail" id="detail" aria-labelledby="dTitle">
+    <div class="detail-inner">
+      <header class="d-head">
+        <div>
+          <p class="d-cat" id="dCat"></p>
+          <h2 id="dTitle"></h2>
+          <p class="d-en" id="dEn"></p>
+        </div>
+        <div class="d-head-actions">
+          <button type="button" class="fav big" id="dFav" aria-pressed="false" aria-label="즐겨찾기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg><span>즐겨찾기</span></button>
+          <button type="button" class="icon-btn" id="dClose" aria-label="닫기" autofocus><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </div>
+      </header>
+
+      <div class="d-body">
+        <div class="d-stage">
+          <div class="d-frame shot-frame" id="dMedia"></div>
+          <div class="d-stage-bar">
+            <span class="hint-chip" id="dType"></span>
+            <div class="d-stage-actions">
+              <button type="button" class="btn ghost" id="dGuide" hidden>구도 가이드</button>
+              <button type="button" class="btn ghost" id="dAdd">조합기에 추가</button>
+            </div>
+          </div>
+          <figure class="diagram" id="dDiagram" hidden><div id="dDiagramSvg"></div><figcaption id="dDiagramCap"></figcaption></figure>
+        </div>
+
+        <div class="d-info">
+          <div class="d-tabs" role="tablist" aria-label="상세 정보">
+            <button type="button" role="tab" id="tab-info" aria-controls="panel-info" aria-selected="true">설명</button>
+            <button type="button" role="tab" id="tab-prompt" aria-controls="panel-prompt" aria-selected="false">AI 프롬프트</button>
+          </div>
+          <section class="d-panel" id="panel-info" role="tabpanel" aria-labelledby="tab-info"></section>
+          <section class="d-panel" id="panel-prompt" role="tabpanel" aria-labelledby="tab-prompt" hidden>
+            <div class="slots">
+              <label>대상 <input id="pSubject" type="text" spellcheck="false"></label>
+              <label>장소 <input id="pLocation" type="text" spellcheck="false"></label>
+            </div>
+            <h4>핵심 키워드</h4>
+            <div class="kw-row"><code class="kw" id="pKeyword"></code><button type="button" class="btn ghost" id="copyKeyword">복사</button></div>
+            <h4>완성 프롬프트 (영어)</h4>
+            <pre class="prompt" id="pFull"></pre>
+            <button type="button" class="btn primary wide" id="copyPrompt">프롬프트 복사</button>
+            <p class="panel-note">영상 AI(Sora · Veo · Kling · Runway · Higgsfield 등)는 영어 촬영 용어를 가장 정확하게 알아들어요. 대상·장소를 바꾸면 프롬프트에 바로 반영돼요.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 샷 조합기 -->
+  <dialog class="detail builder" id="builder" aria-labelledby="bTitle">
+    <div class="detail-inner">
+      <header class="d-head">
+        <div>
+          <p class="d-cat">SHOT BUILDER</p>
+          <h2 id="bTitle">샷 조합기</h2>
+          <p class="d-en">크기 · 앵글 · 무빙 · 렌즈 · 속도를 골라 한 문장 프롬프트로</p>
+        </div>
+        <div class="d-head-actions">
+          <button type="button" class="btn ghost" id="bReset">초기화</button>
+          <button type="button" class="icon-btn" id="bClose" aria-label="닫기" autofocus><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </div>
+      </header>
+      <div class="builder-body">
+        <div class="slots">
+          <label>대상 <input id="bSubject" type="text" spellcheck="false"></label>
+          <label>장소 <input id="bLocation" type="text" spellcheck="false"></label>
+        </div>
+        <div class="b-rows" id="bRows"></div>
+        <h4>완성 프롬프트 (영어)</h4>
+        <pre class="prompt" id="bOut"></pre>
+        <p class="b-ko" id="bKo"></p>
+        <button type="button" class="btn primary wide" id="bCopy">프롬프트 복사</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="shots-data.js"></script>
+  <script src="shots.js"></script>
+</body>
+</html>
