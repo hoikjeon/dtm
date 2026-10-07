@@ -100,3 +100,5 @@
   .diagram { grid-template-columns: 1fr; }
 }
 .builder-body h4 { margin: 4px 0 -6px; font-size: 13px; letter-spacing: 0.04em; color: var(--faint); font-weight: 700; }
+.cut.fade img { transition: opacity 0.9s ease; }
+.dg-zoom { stroke: #f472b6; stroke-width: 1.2; fill: none; }

@@ -4,11 +4,12 @@
 
   const CATS = window.SHOT_CATEGORIES || [];
   const CAT_ORDER = Object.fromEntries(CATS.map((c, i) => [c.id, i]));
-  const SHOTS = (window.SHOTS || []).slice().sort((a, b) => (CAT_ORDER[a.cat] ?? 99) - (CAT_ORDER[b.cat] ?? 99));
+  const SHOTS = (window.SHOTS || []).filter((s) => !s.draft).sort((a, b) => (CAT_ORDER[a.cat] ?? 99) - (CAT_ORDER[b.cat] ?? 99));
   const BUILDER_CATS = ['size', 'angle', 'move', 'comp', 'lens', 'time']; // 조합기에서 고를 분류
   const DEFAULT_SUBJECT = 'a young woman in a bright yellow raincoat';
   const DEFAULT_LOCATION = 'a rainy neon-lit city street at night';
   const MEDIA_LABEL = { image: '이미지 예시', video: '영상 예시', cut: '컷 편집 예시' };
+  const mediaLabel = (s) => (s.soon ? '이미지 예시 · 영상 준비 중' : MEDIA_LABEL[s.media.type]);
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -32,12 +33,14 @@
       return `<video src="${m.src}" poster="${m.poster}" muted loop playsinline preload="${big ? 'auto' : 'none'}"${big ? ' autoplay controls' : ''} aria-label="${esc(s.ko)} 예시 영상"></video>`;
     }
     if (m.type === 'cut') {
-      return `<div class="cut" data-hold="${m.hold || 1200}">${m.srcs.map((src, i) => `<img src="${src}" alt="${esc(s.ko)} 예시 ${i + 1}" class="${i === 0 ? 'on' : ''}" loading="lazy">`).join('')}<span class="cut-count">CUT 1/${m.srcs.length}</span></div>`;
+      const labels = m.labels || [];
+      return `<div class="cut${m.fade ? ' fade' : ''}" data-hold="${m.hold || 1200}">${m.srcs.map((src, i) => `<img src="${src}" alt="${esc(s.ko)} 예시 ${i + 1}${labels[i] ? ' — ' + esc(labels[i]) : ''}" data-label="${esc(labels[i] || '')}" class="${i === 0 ? 'on' : ''}" loading="lazy">`).join('')}<span class="cut-count">${cutLabel(0, m.srcs.length, labels[0])}</span></div>`;
     }
     return `<img src="${m.src}" alt="${esc(s.ko)} 예시" loading="${big ? 'eager' : 'lazy'}">`;
   }
 
   // 컷 시퀀스: 보이는 동안 일정 간격으로 다음 컷으로
+  const cutLabel = (i, n, label) => `CUT ${i + 1}/${n}${label ? ' · ' + esc(label) : ''}`;
   const cutTimers = new WeakMap();
   function startCut(box) {
     const cut = box.querySelector('.cut');
@@ -48,7 +51,7 @@
       imgs[i].classList.remove('on');
       i = (i + 1) % imgs.length;
       imgs[i].classList.add('on');
-      cut.querySelector('.cut-count').textContent = `CUT ${i + 1}/${imgs.length}`;
+      cut.querySelector('.cut-count').innerHTML = cutLabel(i, imgs.length, imgs[i].dataset.label);
     }, Number(cut.dataset.hold)));
   }
   function stopCut(box) {
@@ -78,7 +81,7 @@
     return `<article class="card" data-id="${s.id}">
   <div class="demo">
     ${mediaHTML(s)}
-    <span class="hint-chip media-chip ${s.media.type}">${MEDIA_LABEL[s.media.type]}</span>
+    <span class="hint-chip media-chip ${s.media.type}">${mediaLabel(s)}</span>
     <span class="abbr">${esc(s.abbr)}</span>
     <button type="button" class="fav" data-act="fav" data-fav="${s.id}" aria-pressed="${favs.has(s.id)}" aria-label="${esc(s.ko)} 즐겨찾기" title="즐겨찾기 (맨 위에 고정)">${STAR_SVG}</button>
   </div>
@@ -208,7 +211,10 @@
     if (d.type === 'angle') {
       const person = '<circle class="dg-person" cx="105" cy="34" r="6"/><rect class="dg-person" x="100" y="41" width="10" height="24" rx="3"/><rect class="dg-person" x="101" y="65" width="3.5" height="22"/><rect class="dg-person" x="105.5" y="65" width="3.5" height="22"/>';
       const ground = '<line class="dg-ground" x1="8" y1="87" x2="142" y2="87"/>';
-      const cams = { high: [38, 12, 105, 55], low: [38, 80, 105, 40], top: [105, 8, 105, 30], tilt: [36, 40, 100, 45] };
+      const cams = {
+        high: [38, 12, 105, 55], low: [38, 80, 105, 40], top: [105, 8, 105, 30], tilt: [36, 40, 100, 45],
+        worm: [84, 84, 105, 30], eye: [38, 37, 105, 37], ground: [38, 82, 105, 82], shoulder: [38, 45, 105, 42],
+      };
       const [cx, cy, tx, ty] = cams[d.cam];
       const deg = Math.atan2(ty - cy, tx - cx) * 180 / Math.PI + (d.cam === 'tilt' ? -20 : 0);
       return `<svg viewBox="0 0 150 100" aria-hidden="true">${ground}${person}<line class="dg-ray" x1="${cx}" y1="${cy}" x2="${tx}" y2="${ty}"/>${camIcon(cx, cy, deg)}</svg>`;
@@ -219,6 +225,25 @@
       if (d.path === 'pan') return `<svg viewBox="0 0 150 100" aria-hidden="true">${ARROW}${person(118, 62)}<line class="dg-ray" x1="40" y1="50" x2="115" y2="22"/><line class="dg-ray" x1="40" y1="50" x2="115" y2="62"/>${camIcon(40, 50, 0)}<path class="dg-move" d="M58 34A24 24 0 0 1 60 64"/></svg>`;
       if (d.path === 'track') return `<svg viewBox="0 0 150 100" aria-hidden="true">${ARROW}${person(75, 72)}<path class="dg-move" d="M75 62V48"/>${camIcon(75, 28, 90)}<path class="dg-move" d="M92 34V12"/></svg>`;
       if (d.path === 'orbit') return `<svg viewBox="0 0 150 100" aria-hidden="true">${ARROW}${person(75, 50)}<path class="dg-move" d="M37 50A38 38 0 0 1 113 50"/>${camIcon(37, 58, 0)}</svg>`;
+      const svg = (body) => `<svg viewBox="0 0 150 100" aria-hidden="true">${ARROW}${body}</svg>`;
+      const paths = {
+        pull: () => `${person(118, 50)}${camIcon(82, 50, 0)}<path class="dg-move" d="M70 50H22"/>`,
+        vertigo: () => `${person(118, 50)}<line class="dg-ray" x1="66" y1="50" x2="140" y2="14"/><line class="dg-ray" x1="66" y1="50" x2="140" y2="86"/><line class="dg-zoom" x1="66" y1="50" x2="118" y2="38"/><line class="dg-zoom" x1="66" y1="50" x2="118" y2="62"/>${camIcon(66, 50, 0)}<path class="dg-move" d="M54 50H18"/>`,
+        truck: () => `${person(75, 24)}${camIcon(42, 76, -90)}<path class="dg-move" d="M56 90H112"/>`,
+        zoom: () => `${person(118, 50)}<line class="dg-ray" x1="40" y1="50" x2="132" y2="12"/><line class="dg-ray" x1="40" y1="50" x2="132" y2="88"/><line class="dg-zoom" x1="40" y1="50" x2="132" y2="40"/><line class="dg-zoom" x1="40" y1="50" x2="132" y2="60"/>${camIcon(34, 50, 0)}`,
+        shake: () => `${person(118, 50)}${camIcon(32, 50, 0)}<path class="dg-move" d="M46 50l6-8l6 14l6-14l6 14l6-14l6 8"/>`,
+        whip: () => `${person(118, 76)}<line class="dg-ray" x1="40" y1="50" x2="118" y2="18"/>${camIcon(40, 50, 0)}<path class="dg-move" d="M60 28A30 30 0 0 1 64 70"/><path class="dg-move" d="M70 22A38 38 0 0 1 74 76"/>`,
+        fly: () => `${person(112, 30)}${camIcon(26, 82, -40)}<path class="dg-move" d="M38 72Q70 66 100 38"/>`,
+        fpv: () => `${person(122, 50)}${camIcon(18, 78, -30)}<path class="dg-move" d="M30 70C52 18 72 92 108 52"/>`,
+      };
+      const side = (body) => `<line class="dg-ground" x1="8" y1="87" x2="142" y2="87"/><circle class="dg-person" cx="110" cy="34" r="6"/><rect class="dg-person" x="105" y="41" width="10" height="24" rx="3"/><rect class="dg-person" x="106" y="65" width="3.5" height="22"/><rect class="dg-person" x="110.5" y="65" width="3.5" height="22"/>${body}`;
+      const sides = {
+        tilt: () => side(`<line class="dg-ray" x1="40" y1="60" x2="106" y2="85"/><line class="dg-ray" x1="40" y1="60" x2="106" y2="34"/>${camIcon(40, 60, 20)}<path class="dg-move" d="M66 72A28 28 0 0 0 64 46"/>`),
+        crane: () => side(`${camIcon(34, 72, 0)}<path class="dg-move" d="M34 62Q34 18 74 12"/><line class="dg-ground" x1="34" y1="87" x2="34" y2="78"/>`),
+        pedestal: () => side(`${camIcon(44, 66, 0)}<path class="dg-move" d="M28 64V30"/><line class="dg-ray" x1="52" y1="66" x2="104" y2="66"/><line class="dg-ray" x1="52" y1="34" x2="104" y2="34"/>`),
+      };
+      const make = (d.side ? sides : paths)[d.path];
+      if (make) return svg(make());
     }
     return '';
   }
@@ -226,6 +251,7 @@
     size: ['FRAME', '점선 상자가 화면에 담기는 범위예요. 인물의 어디까지 담는지가 샷 크기를 정해요.'],
     angle: ['SIDE VIEW', '옆에서 본 카메라 높이와 방향이에요. 카메라가 높을수록 인물이 작아 보여요.'],
     move: ['TOP VIEW', '위에서 본 카메라 움직임이에요. 분홍 화살표가 카메라(또는 인물)가 움직이는 방향이에요.'],
+    moveSide: ['SIDE VIEW', '옆에서 본 카메라 움직임이에요. 분홍 화살표가 카메라가 움직이거나 고개를 드는 방향이에요.'],
   };
 
   // ── 구도 가이드 선 ─────────────────────────────────
@@ -233,6 +259,8 @@
     const g = {
       thirds: '<line x1="33.3" y1="0" x2="33.3" y2="100"/><line x1="66.6" y1="0" x2="66.6" y2="100"/><line x1="0" y1="33.3" x2="100" y2="33.3"/><line x1="0" y1="66.6" x2="100" y2="66.6"/><circle cx="33.3" cy="33.3" r="0.9"/><circle cx="66.6" cy="33.3" r="0.9"/><circle cx="33.3" cy="66.6" r="0.9"/><circle cx="66.6" cy="66.6" r="0.9"/>',
       center: '<line x1="50" y1="0" x2="50" y2="100"/><line x1="0" y1="50" x2="100" y2="50"/><line x1="0" y1="0" x2="50" y2="50"/><line x1="100" y1="0" x2="50" y2="50"/><line x1="0" y1="100" x2="50" y2="50"/><line x1="100" y1="100" x2="50" y2="50"/>',
+      lines: '<line x1="0" y1="100" x2="50" y2="42"/><line x1="100" y1="100" x2="50" y2="42"/><line x1="0" y1="0" x2="50" y2="42"/><line x1="100" y1="0" x2="50" y2="42"/><circle cx="50" cy="42" r="0.9"/>',
+      diagonal: '<line x1="0" y1="100" x2="100" y2="0"/><line x1="0" y1="66.6" x2="66.6" y2="0"/><line x1="33.3" y1="100" x2="100" y2="33.3"/>',
       space: '<rect class="shade" x="2" y="3" width="60" height="60" rx="1"/><line x1="66.6" y1="0" x2="66.6" y2="100"/><line x1="0" y1="66.6" x2="100" y2="66.6"/>',
     }[type];
     return g ? `<svg class="guide" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${g}</svg>` : '';
@@ -246,7 +274,7 @@
     $('dCat').textContent = `${catName(s.cat).toUpperCase()} · ${s.abbr}`;
     $('dTitle').textContent = s.ko;
     $('dEn').textContent = s.en;
-    $('dType').textContent = MEDIA_LABEL[s.media.type];
+    $('dType').textContent = mediaLabel(s);
     $('dFav').setAttribute('aria-pressed', String(favs.has(s.id)));
     $('dMedia').innerHTML = mediaHTML(s, { big: true });
     if (s.media.type === 'cut') { stopCut($('dMedia')); startCut($('dMedia')); }
@@ -258,7 +286,7 @@
     $('dDiagram').hidden = !s.diagram;
     if (s.diagram) {
       $('dDiagramSvg').innerHTML = diagramSVG(s.diagram);
-      const [t, c] = DIAGRAM_CAP[s.diagram.type];
+      const [t, c] = DIAGRAM_CAP[s.diagram.type === 'move' && s.diagram.side ? 'moveSide' : s.diagram.type];
       $('dDiagramCap').innerHTML = `<b>${t}</b>${c}`;
     }
 

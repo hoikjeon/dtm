@@ -139,6 +139,7 @@ def build_effects() -> None:
 SHOTS_RAW = RAW / "shots"
 SHOTS_OUT = OUT / "shots"
 SHOT_RENAME = {"ref-hero": "full"}  # 기준 주인공 이미지 = 풀 샷 예시
+SHOT_LETTERBOX = {"anamorphic"}  # 시네마스코프(2.39:1) 이미지는 잘리지 않게 위아래 검은 띠를 붙여 16:9 로
 
 
 def build_shots() -> None:
@@ -150,6 +151,10 @@ def build_shots() -> None:
         img = Image.open(src).convert("RGB")
         if img.width > EFFECTS_WIDTH:
             img = img.resize((EFFECTS_WIDTH, round(img.height * EFFECTS_WIDTH / img.width)), Image.LANCZOS)
+        if src.stem in SHOT_LETTERBOX and img.width / img.height > 16 / 9 + 0.01:
+            frame = Image.new("RGB", (img.width, round(img.width * 9 / 16)), "black")
+            frame.paste(img, (0, (frame.height - img.height) // 2))
+            img = frame
         name = SHOT_RENAME.get(src.stem, src.stem)
         img.save(SHOTS_OUT / f"{name}.webp", quality=82, method=6)
         print(f"  shots/{name}.webp  {img.size[0]}x{img.size[1]}")
